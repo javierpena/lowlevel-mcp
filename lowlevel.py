@@ -2,7 +2,7 @@
 
 Provides tools for CPU affinity analysis, MSR register access, and ethtool queries.
 """
-from typing import Annotated, Any, get_origin, get_args
+from typing import Annotated, Any, Literal, get_origin, get_args
 import subprocess
 import sys
 import os
@@ -104,6 +104,29 @@ def read_msr_register(
         return f"Error: {result.stderr}\n"
     return result.stdout
 
+@mcp.tool(annotations={
+            "readOnlyHint": True,
+            "destructiveHint": False
+            }
+)
+def query_ethtool(
+        interface: Annotated[str, "Network interface name (e.g., eth0)"],
+        query: Literal["show-coalesce", "show-ring", "driver", "show-offload", "statistics", "show-channels"]
+    ) -> str:
+    """Query ethtool for network interface information.
+
+    Args:
+        interface: Network interface name
+        query: One of: show-coalesce, show-ring, driver, show-offload, statistics, show-channels
+
+    Returns:
+        Raw ethtool command output
+    """
+    r = subprocess.run(['/usr/sbin/ethtool', f'--{query}', interface],
+                       text=True, capture_output=True, check=False)
+    if r.returncode != 0:
+        return f"Error: {r.stderr}"
+    return r.stdout
 
 
 def _fmt_param(p):
@@ -115,6 +138,9 @@ def _fmt_param(p):
         base_type = args[0].__name__ if hasattr(args[0], '__name__') else str(args[0])
         desc = args[1] if len(args) > 1 else ''
         type_str = f": {base_type}  # {desc}" if desc else f": {base_type}"
+    elif get_origin(ann) is Literal:
+        vals = get_args(ann)
+        type_str = f": {' | '.join(repr(v) for v in vals)}"
     else:
         type_str = f": {ann.__name__}" if hasattr(ann, '__name__') else f": {ann}"
 
