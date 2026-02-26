@@ -5,6 +5,7 @@ Provides tools for CPU affinity analysis, MSR register access, and ethtool queri
 from typing import Annotated, Any, get_origin, get_args
 import subprocess
 import sys
+import os
 import types
 import inspect
 from inspect import getmembers, isfunction, stack
@@ -96,6 +97,8 @@ def read_msr_register(
         The MSR register value, in hexadecimal.
     """
     args = ["/usr/sbin/rdmsr", "-x", "-p", str(cpu), register]
+    if os.getuid() != 0:
+        args = ['sudo'] + args
     result = subprocess.run(args, text=True, capture_output=True, check=False)
     if result.returncode != 0:
         return f"Error: {result.stderr}\n"
