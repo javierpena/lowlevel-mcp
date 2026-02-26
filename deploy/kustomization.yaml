@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: lowlevel-mcp
+
+resources:
+- namespace.yaml
+- serviceaccount.yaml
+- rbac.yaml
+- daemonset.yaml
+
+labels:
+- includeSelectors: true
+  includeTemplates: true
+  pairs:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/part-of: lowlevel-mcp
+
+# Images set at deploy time
+images:
+- name: quay.io/REPLACE_WITH_YOUR_USERNAME/lowlevel-mcp

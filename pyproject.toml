@@ -1,0 +1,9 @@
+[project]
+name = "lowlevel-mcp"
+version = "0.1.0"
+description = "MCP server providing low-level server information from an OpenShift node"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastmcp>=3.0.0b2",
+]
