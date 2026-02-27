@@ -33,14 +33,15 @@ spec:
           requests:
             cpu: 50m
             memory: 100Mi
-          securityContext:
-            privileged: true
-            runAsUser: 0
+        securityContext:
+          privileged: true
+          runAsUser: 0
         ports:
         - containerPort: 9028
           name: mcp-port
           protocol: TCP
       hostPID: true
+      hostNetwork: true
       terminationGracePeriodSeconds: 30
 ---
 apiVersion: v1
