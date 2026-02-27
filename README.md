@@ -68,6 +68,23 @@ Read a Model-Specific Register (MSR) from a given CPU. Requires `rdmsr`
 
 **Returns:** The register value in hexadecimal.
 
+### `query_ethtool`
+
+Run an ethtool query from an interface. It requires the `ethtool` binary to be
+available on the host under `/usr/sbin`. 
+
+Note that only certain `ethtool` queries are supported, and all those are read-only
+and will not change any network interface configuration.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `interface` | string | Yes | Network interface name (e.g., `"ens1f0"`) |
+| `query` | Literal | Yes | Query type: must be one of show-coalesce, show-ring, driver, show-offload, statistics, show-channels |
+
+**Returns:** The raw ethtool command output.
+
 ## Dependencies
 
 - [FastMCP](https://gofastmcp.com/) (>= 3.0.0b2) -- MCP server and client framework
