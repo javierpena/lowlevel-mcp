@@ -113,8 +113,8 @@ def query_ethtool(
         interface: Annotated[str, "Network interface name (e.g., eth0)"],
         query: Annotated[Literal["show-coalesce", "show-ring", "driver", "show-offload",
                                  "statistics", "show-channels"],
-                                 "Query type: must be one of show-coalesce, show-ring, driver, \
-                                  show-offload, statistics, show-channels"]
+                                 "Query type: must be one of show-coalesce, show-ring, driver, "
+                                 "show-offload, statistics, show-channels"]
     ) -> str:
     """Query ethtool for network interface information.
 
