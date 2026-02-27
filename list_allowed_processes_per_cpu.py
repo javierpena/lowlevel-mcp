@@ -34,7 +34,7 @@ def get_processes_for_cpu(cpu_num):
 
             if cpus_allowed and name:
                 cpus = parse_cpus_allowed(cpus_allowed)
-                if cpu_num in cpus:
+                if int(cpu_num) in cpus:
                     procs.append((int(p.name), name))
         except (PermissionError, FileNotFoundError, ProcessLookupError):
             pass
