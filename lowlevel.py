@@ -2,7 +2,7 @@
 
 Provides tools for CPU affinity analysis, MSR register access, and ethtool queries.
 """
-from typing import Annotated, Any, Literal, get_origin, get_args
+from typing import Annotated, Literal, get_origin, get_args
 import subprocess
 import sys
 import os
@@ -111,7 +111,10 @@ def read_msr_register(
 )
 def query_ethtool(
         interface: Annotated[str, "Network interface name (e.g., eth0)"],
-        query: Literal["show-coalesce", "show-ring", "driver", "show-offload", "statistics", "show-channels"]
+        query: Annotated[Literal["show-coalesce", "show-ring", "driver", "show-offload",
+                                 "statistics", "show-channels"],
+                                 "Query type: must be one of show-coalesce, show-ring, driver, \
+                                  show-offload, statistics, show-channels"]
     ) -> str:
     """Query ethtool for network interface information.
 
@@ -148,11 +151,9 @@ def _fmt_param(p):
     return f"{p.name}{type_str}{default_str}"
 
 def _mydoc(m=None):
-    full = False
     if not m:
         m = (dict((name, func) for name, func
                   in getmembers(sys.modules[__name__]))[stack()[1][3]])
-        full = True
     sig = inspect.signature(m)
     d = inspect.getdoc(m)
     mod = m.__module__ if m.__module__ != __name__ else ''
