@@ -2,16 +2,14 @@
 
 Provides tools for CPU affinity analysis, MSR register access, and ethtool queries.
 """
-from typing import Annotated, Literal, get_origin, get_args
+from typing import Annotated, Literal
 import subprocess
 import sys
 import os
-import types
-import inspect
-from inspect import getmembers, isfunction, stack
 from fastmcp import FastMCP
 import cpu_intersect
 import list_allowed_processes_per_cpu
+import autodoc
 
 # Initialize FastMCP server
 mcp = FastMCP("lowlevel")
@@ -132,69 +130,17 @@ def query_ethtool(
     return r.stdout
 
 
-def _fmt_param(p):
-    ann = p.annotation
-    if ann == inspect.Parameter.empty:
-        type_str = ''
-    elif get_origin(ann) is Annotated:
-        args = get_args(ann)
-        base_type = args[0].__name__ if hasattr(args[0], '__name__') else str(args[0])
-        desc = args[1] if len(args) > 1 else ''
-        type_str = f": {base_type}  # {desc}" if desc else f": {base_type}"
-    elif get_origin(ann) is Literal:
-        vals = get_args(ann)
-        type_str = f": {' | '.join(repr(v) for v in vals)}"
-    else:
-        type_str = f": {ann.__name__}" if hasattr(ann, '__name__') else f": {ann}"
-
-    default_str = '' if p.default == inspect.Parameter.empty else f" = {repr(p.default)}"
-    return f"{p.name}{type_str}{default_str}"
-
-def _mydoc(m=None):
-    if not m:
-        m = (dict((name, func) for name, func
-                  in getmembers(sys.modules[__name__]))[stack()[1][3]])
-    sig = inspect.signature(m)
-    d = inspect.getdoc(m)
-    mod = m.__module__ if m.__module__ != __name__ else ''
-    prefix = f"{mod}." if mod else ''
-    if d:
-        params = list(sig.parameters.values())
-        if params:
-            p_strs = [f"\n\t{_fmt_param(p)}" for p in params]
-            ret_ann = sig.return_annotation
-            if ret_ann != inspect.Signature.empty:
-                ret = f" -> {ret_ann.__name__ if hasattr(ret_ann, '__name__') else ret_ann}"
-            else:
-                ret = ''
-            sig_fmt = f"({''.join(p_strs)}\n){ret}"
-        else:
-            sig_fmt = str(sig)
-        print(f"\033[1m{prefix}{m.__name__}\033[0m{sig_fmt}\n\t{d.partition('\n')[0]}\n")
-
-
-def _subargs():
-    if sys.argv[1] == '--help':
-        d = inspect.getdoc(sys.modules[__name__])
-        if d:
-            print(d)
-            print()
-        for m in getmembers(sys.modules[__name__]):
-            if isfunction(m[1]) and m[1].__module__ == __name__ and not m[0].startswith('_'):
-                _mydoc(m[1])
-    else:
-        a1 = sys.argv[1]
-        sys.argv = sys.argv[1:]
-        if '(' in a1:
-            ret = eval(a1)
-        elif len(sys.argv) == 1 and isinstance(eval(a1), types.ModuleType):
-            ret = eval(a1 + ".main()")
-        else:
-            ret = eval(a1 + '(' + ', '.join("'%s'" % (a) for a in sys.argv[1:]) + ')')
-        print(ret)
-
 if __name__ == "__main__":
     if len(sys.argv) > 1:
-        _subargs()
+        if sys.argv[1] == '--help':
+            autodoc.show_autodoc(sys.modules[__name__])
+        else:
+            a1 = sys.argv[1]
+            sys.argv = sys.argv[1:]
+            if '(' in a1:
+                ret = eval(a1)
+            else:
+                ret = eval(a1 + '(' + ', '.join("'%s'" % (a) for a in sys.argv[1:]) + ')')
+            print(ret)
     else:
         mcp.run(transport="http", host="0.0.0.0", port=9028)
