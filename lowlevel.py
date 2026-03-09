@@ -2,11 +2,13 @@
 
 Provides tools for CPU affinity analysis, MSR register access, and ethtool queries.
 """
+from pydantic import Field
 from typing import Annotated, Literal
 import subprocess
 import sys
 import os
 from fastmcp import FastMCP
+from fastmcp.prompts import Message
 import cpu_intersect
 import list_allowed_irqs_per_cpu
 import list_allowed_processes_per_cpu
@@ -167,6 +169,55 @@ def query_ethtool(
     if r.returncode != 0:
         return f"Error: {r.stderr}"
     return r.stdout
+
+
+@mcp.prompt(
+    name="check-sriov-pod-network-health",
+    description="Run a complete health check of the network for an SR-IOV pod"
+)
+def check_sriov_pod_network_health(
+    pod_name: str = Field(description="Name of the pod"),
+    namespace: str = Field(description="Namespace where the pod is running"),
+) -> str:
+    user_msg = f"""
+## Your Task
+
+Analyze all OpenShift-related parameters that may impact SR-IOV network performance for pod {pod_name} running in namespace {namespace}. You must check the following:
+
+1. Check the CPU usage of all reserved cores, as defined by the Performance Profile resource. You can use a Prometheus query to get it.
+2. Make sure the topology policy defined in the Performance Profile resource is either "single-numa-node" or "restricted".
+3. Make sure the following annotations, including their required values, are included in the pod definition:
+    - cpu-load-balancing.crio.io: disable
+    - cpu-quota.crio.io: disable
+    - irq-load-balancing.crio.io: disable
+4. Find the node CPUs assigned to the pod. To do so, use the containerID from the pod as a key to search for its cgroup in the host filesystem. Search under /host/sys/fs/cgroup, with pattern being `**/*<containerID>*/cpuset.cpus.effective`. Then:
+  a) Check which processes are running on the node CPUs assigned to the pod. You can use the list_processes_for_cpu tool to get the information. If there is any kernel process running on those CPUs, ensure it is a per-cpu kernel thread and not any other type of process.
+  b) Check the IRQs allowed to run on the node CPUs assigned to the pod. You can use the list_irqs_for_cpu tool to get the information. No IRQ related to a network driver should be allowed to run on those CPUs.
+5. Find the physical NICs used by the SR-IOV VFs associated to the pod. You can use the SriovNetworkNodeState OpenShift resource to get the VF to PF mapping. Then, check the MTU for all physical NICs used by the SR-IOV VFs associated to the pod. They must be 1500 or higher.
+6. Check the combined channels for the physical NICs used by the SR-IOV VFs associated to the pod. You can use the query_ethtool tool to get that information. The number of combined channels must be at least 16 for each NIC.
+7. Make sure the the pod's CPU utilization is above 90%.
+8. Make sure the pod containers are not being throttled by the CFS.
+9. Make sure the QoS class for the pod is Guaranteed.
+10. Check the statistics for all physical NICs used by the SR-IOV VFs associated to the pod. You can use the query_ethtool tool to get that information. There should be a good balance in the values of tx_queue_*_packets and rx_queue_*_packets for each of the tx and rx queues.
+11. Check the MTU for all SR-IOV VFs associated to the pod. They must be 1500 or higher.
+12. Make sure there are no errors or packet drops shown for any physical NICs used by the SR-IOV VFs associated to the pod. You can use a Prometheus query to get the information.
+13. Check for any drops or errors at the TCP and UDP layers on the node running the pod. Use a Prometheus query to get the information.
+14. Check the kernel settings under /proc/sys/net are correct. You can use the read_text_file_openshift_host tool from the openshift-filesystem-mcp MCP server for that. Specifically, the highest value from each file should be at least:
+    - /host/proc/sys/net/ipv4/tcp_rmem: 4194304
+    - /host/proc/sys/net/ipv4/tcp_wmem: 4194304
+15. Check for softnet packet-drop errors or high time_squeeze values at /host/proc/net/softnet_stat, which can indicate network contention on the node running the pod. You can use the read_text_file_openshift_host tool from the openshift-filesystem-mcp MCP server for that.
+16. Check for a high number of SMI interrupts received by the node's CPU, by reading the MSR register. Use the read_msr_register tool for that.
+
+Do not try to run any local commands. Always use the tools at your disposal from the available MCP servers.
+
+Once the checks have been completed, prepare a comprehensive report of the results, highlighting any error that must be immediately acted upon, as well as any warning that may be checked.
+    """
+    assistant_msg = "I will check the pod network health for you."
+
+    return [
+        Message(user_msg),
+        Message(assistant_msg, role="assistant"),
+    ]
 
 
 if __name__ == "__main__":
